@@ -1,20 +1,17 @@
 
+
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <limits.h>
+
 using namespace std;
 
-int T, V, E;
-vector<vector<int> > edgeList;
-vector<int> parent;
+int N, answer;
+int hit[50][10];
+vector<int> orderCombination;
 
-bool compare(const vector<int>& v1, const vector<int>& v2) {
-	return v1[2] < v2[2];
-}
-
-void makeSet(int index);
-int findSet(int index);
-bool unionSet(int src, int des);
+int solution(vector<int> &order);
 
 int main()
 {
@@ -23,52 +20,91 @@ int main()
 	cin.tie(NULL);
 	cout.tie(NULL);
 	
-	cin >> T;
-	for(int test = 1; test <= T; test++) {
-		cin >> V >> E;
-		parent.assign(V + 1, 0);
-		edgeList.assign(E, vector<int>(3, 0));
-		
-		for(int index = 1; index <= V; index++) makeSet(index);
-		
-		for(int index = 0; index < E; index++) {
-			cin >> edgeList[index][0] >> edgeList[index][1] >> edgeList[index][2];
+	for(int num = 2; num <= 9; num++)
+		orderCombination.push_back(num);
+	
+	cin >> N;
+	for(int inning = 0; inning < N; inning++) {
+		for(int hitter = 1; hitter <= 9; hitter++) {
+			cin >> hit[inning][hitter];
 		}
-		
-		sort(edgeList.begin(), edgeList.end(), compare);
-		
-		long answer = 0;
-		int edgeCnt = 0;
-		for(auto edge : edgeList) {
-			if(unionSet(edge[0], edge[1])) {
-				answer += edge[2];
-				if(++edgeCnt == V - 1) break;
-			}
-		}
-		
-		cout << "#" << test << " " << answer << endl;
 	}
+	
+	answer = 0;
+	
+	while(true) {
+		vector<int> tmpOrder = orderCombination;
+		tmpOrder.insert(tmpOrder.begin() + 3, 1);
+		
+		int res = solution(tmpOrder);
+		if(answer < res) answer = res;
+		
+		if(!next_permutation(orderCombination.begin(), orderCombination.end())) break;
+	}
+	
+	cout << answer << endl;
 	
 	return 0;
 }
 
-void makeSet(int index) {
-	parent[index] = index;
-}
-
-int findSet(int index) {
-	if(parent[index] == index) return index;
-	else return (parent[index] = findSet(parent[index]));
-}
-
-bool unionSet(int src, int des) {
-	int ps = findSet(src);
-	int pd = findSet(des);
+int solution(vector<int> &order) {
+	int score = 0;
+	int hIndex = 0; // 타자 순서 저장
+	vector<bool> base(3, false);
 	
-	if(ps != pd) {
-		parent[ps] = pd;
-		return true;
+	for(int inning = 0; inning < N; inning++) {
+		int outCnt = 0;
+		
+		while(outCnt < 3) {
+			int hitRes = hit[inning][order[hIndex++]];
+
+			switch(hitRes) {
+				case 0: // 아웃인 경우
+					outCnt++;
+					break;
+					
+				case 1: // 안타인 경우 1루씩 전진
+					if(base[2]) score++; 	// 3루에 주자가 있는 경우 득점
+					base[2] = base[1]; 		// 2루 주자 -> 3루
+					base[1] = base[0]; 		// 1루 주자 -> 2루
+					base[0] = true; 		// 1루에 주자 생김
+					break;
+					
+				case 2: // 2루타인 경우 2루씩 전진
+					// 3루에 주자가 있는 경우 -> 득점
+					if(base[2]) {
+						score++;
+						base[2] = false;
+					}
+					// 2루에 주자가 있는 경우 -> 득점
+					if(base[1]) {
+						score++;
+						base[1] = false;
+					}
+					base[2] = base[0]; 	// 1루 주자 -> 3루
+					base[0] = false;	// 1루에 주자가 있었던 경우를 대비해서 변경
+					base[1] = true;	// 2루에 주자 생김
+					break;
+					
+				case 3: // 3루타인 경우 3루씩 전진
+					for(int index = 0; index < 3; index++) {
+						if(base[index]) score++;
+						base[index] = false;
+					}
+					base[2] = true; // 3루에만 주자 있음
+					break;
+					
+				case 4: // 홈런인 경우 모두 득점
+					score++;
+					for(int index = 0; index < 3; index++) {
+						if(base[index]) score++;
+						base[index] = false;
+					}
+			}
+
+			hIndex %= 9;
+		}
 	}
 	
-	return false;
+	return score;
 }
